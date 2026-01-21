@@ -4,23 +4,23 @@
 
 enum class State
 {
-    REDINIT,
-    AMBERHOLD,
-    GREENRELEASE,
-    REDHOLD,
-    OFFRELEASE,
-    GREENHOLD
+    RED_INIT,
+    AMBER_HOLD,
+    GREEN_RELEASE,
+    RED_HOLD,
+    OFF_RELEASE,
+    GREEN_HOLD
 };
 
-const uint8_t debounceDelay = 30;
-const uint8_t redDelay = 3;
-const uint8_t greenDelay = 1;
+const uint8_t DEBOUNCE_DELAY = 30;
+const uint8_t RED_DELAY = 4;
+const uint8_t GREEN_DELAY = 1;
 
 bool buttonIsPressed()
 {
     if (PIND & (1 << PD2))
     {
-        _delay_ms(debounceDelay);
+        _delay_ms(DEBOUNCE_DELAY);
         if (PIND & (1 << PD2))
         {
             return true;
@@ -43,9 +43,9 @@ void redLight()
 void amberLight()
 {
     redLight();
-    _delay_ms(redDelay);
+    _delay_ms(RED_DELAY);
     greenLight();
-    _delay_ms(greenDelay);
+    _delay_ms(GREEN_DELAY);
 }
 
 void lightOff()
@@ -54,90 +54,98 @@ void lightOff()
     PORTA &= ~(1 << PA0);
 }
 
+void switchLogic(State& state)
+{
+    switch (state)
+    {
+    case State::RED_INIT:
+        if (buttonIsPressed())
+        {
+            state = State::AMBER_HOLD;
+        }
+        break;
+
+    case State::AMBER_HOLD:
+        if (!buttonIsPressed())
+        {
+            state = State::GREEN_RELEASE;
+        }
+        break;
+
+    case State::GREEN_RELEASE:
+        if (buttonIsPressed())
+        {
+            state = State::RED_HOLD;
+        }
+        break;
+
+    case State::RED_HOLD:
+        if (!buttonIsPressed())
+        {
+            state = State::OFF_RELEASE;
+        }
+        break;
+
+    case State::OFF_RELEASE:
+        if (buttonIsPressed())
+        {
+            state = State::GREEN_HOLD;
+        }
+        break;
+
+    case State::GREEN_HOLD:
+        if (!buttonIsPressed())
+        {
+            state = State::RED_INIT;
+        }
+        break;
+    }
+}
+
+void lightLogic(State& state)
+{
+    switch (state)
+    {
+    case State::RED_INIT:
+        redLight();
+        break;
+
+    case State::AMBER_HOLD:
+            amberLight();
+        break;
+
+    case State::GREEN_RELEASE:
+        greenLight();
+        break;
+
+    case State::RED_HOLD:
+        redLight();
+        break;
+
+    case State::OFF_RELEASE:
+        lightOff();
+        break;
+
+    case State::GREEN_HOLD:
+        greenLight();
+        break;
+    }
+}
+
+
 int main()
 {
 
-    State state = State::REDINIT;
+    State state = State::RED_INIT;
 
     DDRA |= (1 << PA0) | (1 << PA1);
     DDRD &= ~(1 << PD2); // XXXX XX0X
 
     while (true)
     {
-        switch (state)
-        {
-        case State::REDINIT:
-            if (buttonIsPressed())
-            {
-                state = State::AMBERHOLD;
-            }
-            break;
+        switchLogic(state);
+        lightLogic(state);
 
-        case State::AMBERHOLD:
-            if (!buttonIsPressed())
-            {
-                state = State::GREENRELEASE;
-            }
-            break;
-
-        case State::GREENRELEASE:
-            if (buttonIsPressed())
-            {
-                state = State::REDHOLD;
-            }
-            break;
-
-        case State::REDHOLD:
-            if (!buttonIsPressed())
-            {
-                state = State::OFFRELEASE;
-            }
-            break;
-
-        case State::OFFRELEASE:
-            if (buttonIsPressed())
-            {
-                state = State::GREENHOLD;
-            }
-            break;
-
-        case State::GREENHOLD:
-            if (!buttonIsPressed())
-            {
-                state = State::REDINIT;
-            }
-            break;
-        }
-
-        switch (state)
-        {
-        case State::REDINIT:
-            redLight();
-            break;
-
-        case State::AMBERHOLD:
-            while (buttonIsPressed())
-            {
-                amberLight();
-            }
-            break;
-
-        case State::GREENRELEASE:
-            greenLight();
-            break;
-
-        case State::REDHOLD:
-            redLight();
-            break;
-
-        case State::OFFRELEASE:
-            lightOff();
-            break;
-
-        case State::GREENHOLD:
-            greenLight();
-            break;
-        }
     }
     return 0;
 }
