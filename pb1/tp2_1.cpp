@@ -25,6 +25,19 @@ bool isPressed()
     }
     return false;
 }
+// Turn LED OFF
+void lightOff()
+{
+    PORTA &=~(1 << PA0);
+    PORTA &=~(1 << PA1);
+}
+
+// Turn LED on
+void lightOn()
+{
+    PORTA |= (1 << PA1);
+    PORTA &=~(1 << PA0);
+}
 
 int main()
 {
@@ -77,30 +90,25 @@ int main()
         switch(state)
         {
             case State::INIT:
-                PORTA &=~(1 << PA0);
-                PORTA &=~(1 << PA1);
+                lightOff();
                 break;
 
             case State::FIRST_PRESS:
-                PORTA &=~(1 << PA0);
-                PORTA &=~(1 << PA1);
+                lightOff();
                 break;
 
             case State::SECOND_PRESS:
-                PORTA &=~(1 << PA0);
-                PORTA &=~(1 << PA1);
+                lightOff();
                 break;
 
             case State::THIRD_PRESS:
-                PORTA |= (1 << PA1);
-                PORTA &=~(1 << PA0);
+                lightOn();
                 _delay_ms(2000);
                 state = State::INIT;
                 break;
 
             case State::BUTTON_DOWN:
-                PORTA &=~(1 << PA0);
-                PORTA &=~(1 << PA1);
+                lightOff();
                 break;
         }
     }
