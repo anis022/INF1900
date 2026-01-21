@@ -1,4 +1,4 @@
-#define F_CPU 8000000
+#define F_CPU 8000000UL
 #include <avr/io.h> 
 #include <util/delay.h>
 
@@ -7,10 +7,10 @@
 enum class State
 {
     INIT,
-    FIRSTPRESS,
-    SECONDPRESS,
-    THIRDPRESS,
-    PRESSED
+    FIRST_PRESS,
+    SECOND_PRESS,
+    THIRD_PRESS,
+    BUTTON_DOWN
 };
 
 bool isPressed()
@@ -31,7 +31,7 @@ int main()
     State state = State::INIT;
     State nextState = State::INIT;
     DDRA |= (1 << PA0)|(1 << PA1);
-    DDRD &= ~(1 << PD2); // xxxx xx0x
+    DDRD &= ~(1 << PD2); // XXXX XX0X
 
     while (true)
     {
@@ -40,33 +40,33 @@ int main()
             case State::INIT:
                 if (isPressed())
                 {
-                    nextState = State::FIRSTPRESS;
-                    state = State::PRESSED;
+                    nextState = State::FIRST_PRESS;
+                    state = State::BUTTON_DOWN;
                 }
                 break;
 
-            case State::FIRSTPRESS:
+            case State::FIRST_PRESS:
                 if (isPressed())
                 {
-                    nextState = State::SECONDPRESS;
-                    state = State::PRESSED;
+                    nextState = State::SECOND_PRESS;
+                    state = State::BUTTON_DOWN;
                 }
                 break;
 
-            case State::SECONDPRESS:
+            case State::SECOND_PRESS:
                 if (isPressed())
                 {
-                    nextState = State::THIRDPRESS;
-                    state = State::PRESSED;
+                    nextState = State::THIRD_PRESS;
+                    state = State::BUTTON_DOWN;
                 }
                 break;
 
-            case State::THIRDPRESS:
+            case State::THIRD_PRESS:
                 _delay_ms(2000);
                 state = State::INIT;
                 break;
 
-            case State::PRESSED:
+            case State::BUTTON_DOWN:
                 if (!isPressed())
                 {
                     state = nextState;
@@ -81,24 +81,24 @@ int main()
                 PORTA &=~(1 << PA1);
                 break;
 
-            case State::FIRSTPRESS:
+            case State::FIRST_PRESS:
                 PORTA &=~(1 << PA0);
                 PORTA &=~(1 << PA1);
                 break;
 
-            case State::SECONDPRESS:
+            case State::SECOND_PRESS:
                 PORTA &=~(1 << PA0);
                 PORTA &=~(1 << PA1);
                 break;
 
-            case State::THIRDPRESS:
+            case State::THIRD_PRESS:
                 PORTA |= (1 << PA1);
                 PORTA &=~(1 << PA0);
                 _delay_ms(2000);
                 state = State::INIT;
                 break;
 
-            case State::PRESSED:
+            case State::BUTTON_DOWN:
                 PORTA &=~(1 << PA0);
                 PORTA &=~(1 << PA1);
                 break;

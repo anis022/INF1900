@@ -13,8 +13,10 @@ enum class State
 };
 
 const uint8_t debounceDelay = 30;
+const uint8_t redDelay = 3;
+const uint8_t greenDelay = 1;
 
-bool isPressed()
+bool buttonIsPressed()
 {
     if (PIND & (1 << PD2))
     {
@@ -27,26 +29,26 @@ bool isPressed()
     return false;
 }
 
-void green()
+void greenLight()
 {
     PORTA |= (1 << PA0);
     PORTA &= ~(1 << PA1);
 }
-void red()
+void redLight()
 {
     PORTA |= (1 << PA1);
     PORTA &= ~(1 << PA0);
 }
 
-void amber()
+void amberLight()
 {
-    red();
-    _delay_ms(3);
-    green();
-    _delay_ms(1);
+    redLight();
+    _delay_ms(redDelay);
+    greenLight();
+    _delay_ms(greenDelay);
 }
 
-void off()
+void lightOff()
 {
     PORTA &= ~(1 << PA1);
     PORTA &= ~(1 << PA0);
@@ -58,49 +60,49 @@ int main()
     State state = State::REDINIT;
 
     DDRA |= (1 << PA0) | (1 << PA1);
-    DDRD &= ~(1 << PD2); // xxxx xx0x
+    DDRD &= ~(1 << PD2); // XXXX XX0X
 
     while (true)
     {
         switch (state)
         {
         case State::REDINIT:
-            if (isPressed())
+            if (buttonIsPressed())
             {
                 state = State::AMBERHOLD;
             }
             break;
 
         case State::AMBERHOLD:
-            if (!isPressed())
+            if (!buttonIsPressed())
             {
                 state = State::GREENRELEASE;
             }
             break;
 
         case State::GREENRELEASE:
-            if (isPressed())
+            if (buttonIsPressed())
             {
                 state = State::REDHOLD;
             }
             break;
 
         case State::REDHOLD:
-            if (!isPressed())
+            if (!buttonIsPressed())
             {
                 state = State::OFFRELEASE;
             }
             break;
 
         case State::OFFRELEASE:
-            if (isPressed())
+            if (buttonIsPressed())
             {
                 state = State::GREENHOLD;
             }
             break;
 
         case State::GREENHOLD:
-            if (!isPressed())
+            if (!buttonIsPressed())
             {
                 state = State::REDINIT;
             }
@@ -110,32 +112,30 @@ int main()
         switch (state)
         {
         case State::REDINIT:
-            red();
+            redLight();
             break;
 
         case State::AMBERHOLD:
-            while (isPressed())
+            while (buttonIsPressed())
             {
-                amber();
-                // if (!ispressed()){
-                //     break;
+                amberLight();
             }
             break;
 
         case State::GREENRELEASE:
-            green();
+            greenLight();
             break;
 
         case State::REDHOLD:
-            red();
+            redLight();
             break;
 
         case State::OFFRELEASE:
-            off();
+            lightOff();
             break;
 
         case State::GREENHOLD:
-            green();
+            greenLight();
             break;
         }
     }
