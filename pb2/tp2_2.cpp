@@ -1,3 +1,77 @@
+
+/*
+Auteurs : Jérémie Anglaret-Guirguis, Anis Benabdallah
+Travail : TP2
+Section # : 05
+Équipe # : 111
+Correcteur : Meriam Ben Rabia
+
+Description du programme : Ce programme implémente une machine à états pour contrôler une LED bicolore (rouge et verte) en fonction de l'état d'un bouton poussoir. La LED passe par plusieurs états (RED_INIT, AMBER_HOLD, GREEN_RELEASE, etc.) en fonction des pressions et relâchements du bouton.
+
+* ========== I/O IDENTIFICATION (CONNEXIONS SUR LE ROBOT) =============
+* 
+* ┌───────────────────────────────────────────────────────────────────┐
+* │                    ATmega324PA - Pinout                           │
+* ├───────────────────────────────────────────────────────────────────┤
+* │                                                                   │
+* │   PORTA            PORTB           PORTC          PORTD           │
+* │  ┌───────┐        ┌──────┐         ┌──────┐       ┌──────┐        │   
+* │  │ PA0 ●-│→ LED+  │PB0 ○ │         │PC0 ○ │       │PD0 ○ │        │
+* │  │ PA1 ●-│→ LED-  │PB1 ○ │         │PC1 ○ │       │PD1 ○ │        │
+* │  │ PA2 ○ │        │PB2 ○ │         │PC2 ○ │       │PD2 ●-│→B-INT0 │
+* │  │ PA3 ○ │        │PB3 ○ │         │PC3 ○ │       │PD3 ○ │        │
+* │  │ PA4 ○ │        │PB4 ○ │         │PC4 ○ │       │PD4 ○ │        │
+* │  │ PA5 ○ │        │PB5 ○ │         │PC5 ○ │       │PD5 ○ │        │
+* │  │ PA6 ○ │        │PB6 ○ │         │PC6 ○ │       │PD6 ○ │        │
+* │  │ PA7 ○ │        │PB7 ○ │         │PC7 ○ │       │PD7 ○ │        │
+* │  └───────┘        └──────┘         └──────┘       └──────┘        │
+* │                                                                   │
+* │  ● = Utilisé          ○ = Non utilisé                             │
+* └───────────────────────────────────────────────────────────────────┘
+* LEGENDE :
+* PG : SPI (Programmeur)
+* RXD/TXD : UART (debug)
+* SCL/SDA : EEPROM externe
+* B-INT0 : bouton
+* LED+ : Green led
+* LED- : Red led
+* =====================================================================
+
++---------------+--------+---------------+--------+
+|               |  INPUT |               | OUTPUT |
+| Current State +--------+   Next State  +--------+
+|               | Button |               |   LED  |
++---------------+--------+---------------+--------+
+|    RED_INIT   |    0   |    RED_INIT   |   Red  |
++---------------+--------+---------------+--------+
+|    RED_INIT   |    1   |   AMBER_HOLD  |   Red  |
++---------------+--------+---------------+--------+
+|   AMBER_HOLD  |    0   | GREEN_RELEASE |  Amber |
++---------------+--------+---------------+--------+
+|   AMBER_HOLD  |    1   |   AMBER_HOLD  |  Amber |
++---------------+--------+---------------+--------+
+| GREEN_RELEASE |    0   | GREEN_RELEASE |  Green |
++---------------+--------+---------------+--------+
+| GREEN_RELEASE |    1   |    RED_HOLD   |  Green |
++---------------+--------+---------------+--------+
+|    RED_HOLD   |    0   |  OFF_RELEASE  |   Red  |
++---------------+--------+---------------+--------+
+|    RED_HOLD   |    1   |    RED_HOLD   |   Red  |
++---------------+--------+---------------+--------+
+|  OFF_RELEASE  |    0   |  OFF_RELEASE  |   Off  |
++---------------+--------+---------------+--------+
+|  OFF_RELEASE  |    1   |   GREEN_HOLD  |   Off  |
++---------------+--------+---------------+--------+
+|   GREEN_HOLD  |    0   |    RED_INIT   |  Green |
++---------------+--------+---------------+--------+
+|   GREEN_HOLD  |    1   |   GREEN_HOLD  |  Green |
++---------------+--------+---------------+--------+
+
+*/
+
+
+
+
 #define F_CPU 8000000UL
 #include <avr/io.h>
 #include <util/delay.h>
@@ -111,7 +185,7 @@ void lightLogic(State& state)
         break;
 
     case State::AMBER_HOLD:
-            amberLight();
+        amberLight();
         break;
 
     case State::GREEN_RELEASE:

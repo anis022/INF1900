@@ -1,10 +1,12 @@
 /*
 
-
+Auteurs : Jérémie Anglaret-Guirguis, Anis Benabdallah
 Travail : TP2
 Section # : 05
 Équipe # : 111
 Correcteur : Meriam Ben Rabia
+
+Description du programme : Ce programme implémente une machine à états pour contrôler une LED bicolore (rouge et verte) en fonction de l'état d'un bouton poussoir. La LED passe par plusieurs états (INIT, FIRST_PRESS, SECOND_PRESS, THIRD_PRESS et WAIT_FOR_RELEASE) en fonction des pressions et relâchements du bouton. À l'état initial, la LED est éteinte et reste éteinte jusqu'à la troixième pression du bouton, où elle s'allume en vert pour deux secondes avant de revenir à l'état initial.
 
 * ========== I/O IDENTIFICATION (CONNEXIONS SUR LE ROBOT) =============
 * 
@@ -32,56 +34,58 @@ Correcteur : Meriam Ben Rabia
 * RXD/TXD : UART (debug)
 * SCL/SDA : EEPROM externe
 * B-INT0 : bouton
-* LED+ : green led
-* LED- : red led
+* LED+ : Green led
+* LED- : Red led
 * =====================================================================
+
 
 +----------------+--------+---------------+--------------+-----------+
 |                |  Input |               |              |   Output  |
-| Previous State +--------+ Current State |  Next State  +-----+-----+
+| Current State  +--------+ Inter. State  |  Next State  +-----+-----+
 |                | Button |               |              | PA0 | PA1 |
 +----------------+--------+---------------+--------------+-----+-----+
 |      INIT      |    0   |      INIT     |     INIT     |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|      INIT      |    1   |  BUTTON_DOWN  |  FIRST_PRESS |  0  |  0  |
+|      INIT      |    1   | W._F._RELEASE |  FIRST_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
 |   FIRST_PRESS  |    0   |  FIRST_PRESS  |  FIRST_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|   FIRST_PRESS  |    1   |  BUTTON_DOWN  | SECOND_PRESS |  0  |  0  |
+|   FIRST_PRESS  |    1   | W._F._RELEASE | SECOND_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
 |  SECOND_PRESS  |    0   |  SECOND_PRESS | SECOND_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|  SECOND_PRESS  |    1   |  BUTTON_DOWN  |  THIRD_PRESS |  0  |  0  |
+|  SECOND_PRESS  |    1   | W._F._RELEASE |  THIRD_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|   THIRD_PRESS  |    0   |      INIT     |       X      |  1  |  0  |
+|   THIRD_PRESS  |    0   |               |     INIT     |  1  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|   THIRD_PRESS  |    1   |      INIT     |       X      |  1  |  0  |
+|   THIRD_PRESS  |    1   |               |     INIT     |  1  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
 |                |        |  FIRST_PRESS  |  FIRST_PRESS |  0  |  0  |
 |                |        +---------------+--------------+-----+-----+
-|   BUTTON_DOWN  |    0   |  SECOND_PRESS | SECOND_PRESS |  0  |  0  |
+|  W._F._RELEASE |    0   |  SECOND_PRESS | SECOND_PRESS |  0  |  0  |
 |                |        +---------------+--------------+-----+-----+
 |                |        |  THIRD_PRESS  |  THIRD_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-|                |        |  BUTTON_DOWN  |  FIRST_PRESS |  0  |  0  |
+|                |        |               |  FIRST_PRESS |  0  |  0  |
 |                |        +---------------+--------------+-----+-----+
-|   BUTTON_DOWN  |    1   |  BUTTON_DOWN  | SECOND_PRESS |  0  |  0  |
+|  W._F._RELEASE |    1   |               | SECOND_PRESS |  0  |  0  |
 |                |        +---------------+--------------+-----+-----+
-|                |        |  BUTTON_DOWN  |  THIRD_PRESS |  0  |  0  |
+|                |        |               |  THIRD_PRESS |  0  |  0  |
 +----------------+--------+---------------+--------------+-----+-----+
-
+LEGENDE :
+- Inter. State = Intermediate State
+- W._F._RELEASE = WAIT_FOR_RELEASE
+- PA0 = 0: LED OFF
+- PA0 = 1: LED GREEN
 */
-
-
-
-
 
 
 #define F_CPU 8000000UL
 #include <avr/io.h> 
 #include <util/delay.h>
 
-const uint16_t greenDelay = 2000;
+const uint16_t GREEN_DELAY = 2000;
+const uint8_t DEBOUNCE_DELAY = 30;
 
 enum class State
 {
@@ -89,14 +93,14 @@ enum class State
     FIRST_PRESS,
     SECOND_PRESS,
     THIRD_PRESS,
-    BUTTON_DOWN
+    WAIT_FOR_RELEASE
 };
 
 bool isPressed()
 {
     if (PIND & (1 << PD2))
     {
-        _delay_ms(30);
+        _delay_ms(DEBOUNCE_DELAY);
         if (PIND & (1 << PD2))
         {
             return true;
@@ -105,87 +109,85 @@ bool isPressed()
     return false;
 }
 
-// Turn LED OFF
-void lightOff()
+void turnOffLED()
 {
     PORTA &=~(1 << PA0);
     PORTA &=~(1 << PA1);
 }
 
-// Turn LED on
-void lightOn()
+void turnOnLED()
 {
     PORTA |= (1 << PA0);
     PORTA &=~(1 << PA1);
 }
 
-void switchLogic(State& currentState, State& nextState)
+void switchLogic(State& currentState, State& pendingState)
 {
     switch(currentState)
     {
         case State::INIT:
             if (isPressed())
             {
-                nextState = State::FIRST_PRESS;
-                currentState = State::BUTTON_DOWN;
+                pendingState = State::FIRST_PRESS;
+                currentState = State::WAIT_FOR_RELEASE;
             }
             break;
 
         case State::FIRST_PRESS:
             if (isPressed())
             {
-                nextState = State::SECOND_PRESS;
-                currentState = State::BUTTON_DOWN;
+                pendingState = State::SECOND_PRESS;
+                currentState = State::WAIT_FOR_RELEASE;
             }
             break;
 
         case State::SECOND_PRESS:
             if (isPressed())
             {
-                nextState = State::THIRD_PRESS;
-                currentState = State::BUTTON_DOWN;
+                pendingState = State::THIRD_PRESS;
+                currentState = State::WAIT_FOR_RELEASE;
             }
             break;
 
         case State::THIRD_PRESS:
-            _delay_ms(2000);
+            _delay_ms(GREEN_DELAY);
             currentState = State::INIT;
             break;
 
-        case State::BUTTON_DOWN:
+        case State::WAIT_FOR_RELEASE:
             if (!isPressed())
             {
-                currentState = nextState;
+                currentState = pendingState;
             }
             break;
     }
 
 }
 
-void lightLogic(State& currentState, State& nextState)
+void lightLogic(State& currentState, State& pendingState)
 {
     switch(currentState)
     {
         case State::INIT:
-            lightOff();
+            turnOffLED();
             break;
 
         case State::FIRST_PRESS:
-            lightOff();
+            turnOffLED();
             break;
 
         case State::SECOND_PRESS:
-            lightOff();
+            turnOffLED();
             break;
 
         case State::THIRD_PRESS:
-            lightOn();
-            _delay_ms(greenDelay);
+            turnOnLED();
+            _delay_ms(GREEN_DELAY);
             currentState = State::INIT;
             break;
 
-        case State::BUTTON_DOWN:
-            lightOff();
+        case State::WAIT_FOR_RELEASE:
+            turnOffLED();
             break;
     }
 }
@@ -193,14 +195,15 @@ void lightLogic(State& currentState, State& nextState)
 int main()
 {
     State currentState = State::INIT;
-    State nextState = State::INIT;
+    State pendingState = State::INIT;
     DDRA |= (1 << PA0)|(1 << PA1);
     DDRD &= ~(1 << PD2); // XXXX XX0X
 
     while (true)
     {
-        switchLogic(currentState, nextState);
-        lightLogic(currentState, nextState);
+        switchLogic(currentState, pendingState);
+        lightLogic(currentState, pendingState);
     }
     return 0;
 }
+
